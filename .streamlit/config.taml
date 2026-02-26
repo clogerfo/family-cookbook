@@ -1,0 +1,10 @@
+[theme]
+# Force the app to always use the Light theme
+base = "light"
+
+# Optional: You can also define your global brand colors here
+# instead of putting them in the CSS!
+primaryColor = "#1565C0"      # The blue we used for your tags
+backgroundColor = "#f4f6f9"   # The soft gray background
+secondaryBackgroundColor = "#FFFFFF" # White for sidebars and input boxes
+textColor = "#2C3E50"         # The dark gray text color

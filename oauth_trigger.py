@@ -1,0 +1,32 @@
+import os
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+
+# Must match the scope in your main script
+SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+
+
+def generate_token():
+    creds = None
+    # The file token.json stores the user's access and refresh tokens
+    if os.path.exists('token.json'):
+        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            # This looks for your credentials.json in the same folder
+            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
+            # This line opens your web browser
+            creds = flow.run_local_server(port=0)
+
+        # This creates the token.json file for you
+        with open('token.json', 'w') as token:
+            token.write(creds.to_json())
+        print("✅ token.json has been created in your root folder!")
+
+
+if __name__ == "__main__":
+    generate_token()
