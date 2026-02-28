@@ -1,13 +1,18 @@
 import streamlit as st
 import os
 import re
-from dotenv import load_dotenv
 from supabase import create_client, Client
 from streamlit_pdf_viewer import pdf_viewer
 from src.recipe_engine.ingestion import google_drive_client
 from orchestrator import ingest_from_multiple_images
 
-load_dotenv()
+# --- NEW: Cloud-Safe Dotenv Loader ---
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass # We are in the cloud, ignore dotenv!
+
 
 st.set_page_config(layout="wide", page_title="Recipe Staging Gateway")
 supabase: Client = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])

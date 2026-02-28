@@ -2,10 +2,14 @@ import streamlit as st
 import os
 import json
 import pandas as pd
-from dotenv import load_dotenv
 from supabase import create_client, Client
 
-load_dotenv()
+# --- NEW: Cloud-Safe Dotenv Loader ---
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass # We are in the cloud, ignore dotenv!
 
 # --- CONFIGURATION ---
 st.set_page_config(
