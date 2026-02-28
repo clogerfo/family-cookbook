@@ -1,0 +1,10 @@
+streamlit
+supabase
+python-dotenv
+pandas
+google-generativeai
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+pydantic
+streamlit-pdf-viewer
