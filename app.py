@@ -185,7 +185,19 @@ def iterate_recipe_modal(recipe):
     with st.form(f"iterate_form_{recipe['id']}"):
         change_reason = st.text_input("Why are you changing this?", placeholder="e.g., Needed more salt...")
 
-        # --- NEW: EDITABLE TIMING FIELDS ---
+        # --- NEW: EDITABLE CHEF AND CATEGORY FIELDS ---
+        c_chef, c_cat = st.columns(2)
+        with c_chef:
+            new_chef = st.text_input("Chef Name", value=recipe.get('uploader_name') or "")
+        with c_cat:
+            cat_options = ["Breakfast", "Lunch", "Dinner", "Snack", "Bake"]
+            # Safely grab the current category and ensure it's in the list
+            current_cat = str(recipe.get('category', 'Dinner')).capitalize()
+            if current_cat not in cat_options:
+                cat_options.append(current_cat)
+            new_category = st.selectbox("Category", cat_options, index=cat_options.index(current_cat))
+
+        # --- EDITABLE TIMING FIELDS ---
         c_p, c_c, c_s = st.columns(3)
         with c_p:
             new_prep = st.number_input("Prep Time (min)", min_value=0, value=int(recipe.get('prep_time_min') or 0))
@@ -227,27 +239,36 @@ def iterate_recipe_modal(recipe):
             if not change_reason:
                 st.error("Please provide a reason!")
             else:
-                # Convert DataFrames back to cleanly formatted lists for the database
-                # Drop rows where the ingredient item or instruction step is totally blank
                 final_ingredients = edited_ing_df.dropna(subset=['item']).to_dict('records')
                 final_instructions = edited_inst_df['step'].dropna().tolist()
 
                 root_parent_id = recipe.get('parent_id') if recipe.get('parent_id') else recipe['id']
 
+                # --- NEW: Safe Type Casting for PostgreSQL ---
+                # Convert empty strings or 0s to 'None' (null in the database)
+                safe_servings = None if str(new_servings).strip() == "" else new_servings
+
+                # If your database strictly requires servings to be a number, uncomment the line below instead:
+                # safe_servings = int(new_servings) if str(new_servings).strip().isdigit() else None
+
+                safe_prep = int(new_prep) if new_prep > 0 else None
+                safe_cook = int(new_cook) if new_cook > 0 else None
+
                 new_version = {
                     "title": recipe['title'],
-                    "category": recipe['category'],
+                    "category": new_category,
                     "family_tag": recipe.get('family_tag'),
-                    "uploader_name": recipe.get('uploader_name'),
+                    "uploader_name": new_chef,
                     "ingredients": final_ingredients,
                     "instructions": final_instructions,
                     "parent_id": root_parent_id,
                     "version": recipe.get('version', 1) + 1,
-                    "prep_time_min": new_prep,  # NEW
-                    "cook_time_min": new_cook,  # NEW
-                    "servings": new_servings,  # NEW
+                    "prep_time_min": safe_prep,
+                    "cook_time_min": safe_cook,
+                    "servings": safe_servings,
                     "change_reason": change_reason,
-                    "is_draft": False
+                    "is_draft": False,
+                    "image_urls": recipe.get('image_urls')
                 }
 
                 supabase.table("recipes").insert(new_version).execute()
@@ -263,7 +284,8 @@ selected_tab = st.radio("Family Collection", families, horizontal=True, label_vi
 
 col1, col2 = st.columns([3, 1])
 with col1:
-    search_query = st.text_input("🔍 Search...", "")
+    # UPDATED: Placeholder specifically hints at searching for family members
+    search_query = st.text_input("🔍 Search recipes, ingredients, or names (e.g., 'Kathleen')...", "")
 with col2:
     category_filter = st.selectbox("Category", ["All", "Breakfast", "Lunch", "Dinner", "Snack", "Bake"])
 
@@ -273,9 +295,17 @@ if category_filter != "All": query = query.ilike("category", category_filter.low
 
 raw_recipes = query.execute().data
 
+# --- PHASE 1: IMPROVED OMNI-SEARCH ---
 if search_query:
     q = search_query.lower()
-    raw_recipes = [r for r in raw_recipes if q in r['title'].lower() or q in str(r['ingredients']).lower()]
+    # Now searches title, ingredients, uploader name, and family tag simultaneously
+    raw_recipes = [
+        r for r in raw_recipes if
+        q in str(r.get('title', '')).lower() or
+        q in str(r.get('ingredients', '')).lower() or
+        q in str(r.get('uploader_name', '')).lower() or
+        q in str(r.get('family_tag', '')).lower()
+    ]
 
 lineages = {}
 for r in raw_recipes:
@@ -287,7 +317,7 @@ for root_id in lineages:
     lineages[root_id].sort(key=lambda x: x.get('version', 1), reverse=True)
 
 if not lineages:
-    st.info("No recipes found.")
+    st.info("No recipes found matching your search.")
 else:
     for root_id, history in lineages.items():
         latest = history[0]
@@ -302,7 +332,6 @@ else:
 
             display_recipe = latest
 
-            # We use a clean flexbox layout to line them up horizontally
             meta_html = "<div style='display: flex; gap: 20px; margin-top: 15px; margin-bottom: 5px; font-size: 0.95em; color: #555;'>"
             if display_recipe.get('prep_time_min'):
                 meta_html += f"<span>⏱️ <b>Prep:</b> {display_recipe['prep_time_min']} min</span>"
@@ -312,36 +341,74 @@ else:
                 meta_html += f"<span>🍽️ <b>Yield:</b> {display_recipe['servings']}</span>"
             meta_html += "</div><hr style='margin-top: 10px; margin-bottom: 15px;'>"
 
-            # Only render if at least one of the fields has data
             if "⏱️" in meta_html or "🍳" in meta_html or "🍽️" in meta_html:
                 st.markdown(meta_html, unsafe_allow_html=True)
             else:
-                st.divider()  # Fallback divider if no timing data exists
+                st.divider()
 
             if len(history) > 1:
-                st.write("")
                 options = {f"v{r.get('version', 1)}: {r.get('change_reason', 'Original')}": r for r in history}
                 selected_label = st.selectbox("📜 View Version History", options.keys(), key=f"sel_{root_id}")
                 display_recipe = options[selected_label]
                 st.markdown(f"*Viewing: {selected_label}*")
                 st.divider()
 
-            c1, c2 = st.columns([1, 1.5])
-            with c1:
-                st.markdown("### 🛒 Ingredients")
-                st.markdown(format_ingredients(display_recipe.get('ingredients', [])), unsafe_allow_html=True)
-            with c2:
-                st.markdown("### 👨‍🍳 Instructions")
-                st.markdown(format_instructions(display_recipe.get('instructions', [])), unsafe_allow_html=True)
+            # --- PHASE 1: THE TABBED LAYOUT ---
+            tab_recipe, tab_original, tab_cooked = st.tabs(["📝 The Recipe", "📸 Original Card", "🍽️ Our Photos"])
 
-            st.divider()
-            c_note, c_btn = st.columns([3, 1])
-            with c_note:
-                if display_recipe.get('change_reason'):
-                    st.info(f"**Update Note:** {display_recipe['change_reason']}")
-                elif display_recipe.get('user_notes'):
-                    st.success(f"**Family Note:** {display_recipe['user_notes']}")
+            with tab_recipe:
+                c1, c2 = st.columns([1, 1.5])
+                with c1:
+                    st.markdown("### 🛒 Ingredients")
+                    st.markdown(format_ingredients(display_recipe.get('ingredients', [])), unsafe_allow_html=True)
+                with c2:
+                    st.markdown("### 👨‍🍳 Instructions")
+                    st.markdown(format_instructions(display_recipe.get('instructions', [])), unsafe_allow_html=True)
 
-            with c_btn:
-                if st.button("🔄 Update", key=f"btn_{display_recipe['id']}"):
-                    iterate_recipe_modal(display_recipe)
+                st.divider()
+                c_note, c_btn = st.columns([3, 1])
+                with c_note:
+                    if display_recipe.get('change_reason'):
+                        st.info(f"**Update Note:** {display_recipe['change_reason']}")
+                    elif display_recipe.get('user_notes'):
+                        st.success(f"**Family Note:** {display_recipe['user_notes']}")
+
+                with c_btn:
+                    if st.button("🔄 Update", key=f"btn_{display_recipe['id']}"):
+                        iterate_recipe_modal(display_recipe)
+
+            with tab_original:
+                # 1. Get the raw data
+                raw_urls = display_recipe.get('image_urls')
+
+                # 2. Safety Parser: Handle String vs. List vs. None
+                final_urls = []
+                if raw_urls:
+                    if isinstance(raw_urls, list):
+                        # It's already a list, perfect.
+                        final_urls = raw_urls
+                    elif isinstance(raw_urls, str):
+                        # It's a string (e.g. "['url']"), so we clean and parse it
+                        try:
+                            import json
+
+                            # Replace single quotes with double quotes for valid JSON
+                            final_urls = json.loads(raw_urls.replace("'", '"'))
+                        except:
+                            st.warning(f"Could not parse image data: {raw_urls}")
+
+                # 3. Display Logic
+                if final_urls and len(final_urls) > 0:
+                    st.success(f"Found {len(final_urls)} scanned image(s).")
+                    for url in final_urls:
+                        st.image(url, use_container_width=True)
+                        st.caption("Archived Recipe Card")
+                else:
+                    st.info("No scanned images found for this specific version.")
+                    st.caption(
+                        "Note: Only recipes uploaded via the new Mobile Camera tool will have images here. Older PDF uploads do not have attached images.")
+
+            with tab_cooked:
+                st.write("### 🚧 Coming Soon!")
+                st.write(
+                    "This space is reserved for photos of your finished dishes. Once we build the Cook Log feature in Phase 3, the photos you upload there will automatically display here for the family to see.")
