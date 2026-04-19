@@ -1,0 +1,138 @@
+{
+    "title": "Chicken Chili",
+    "category": "dinner",
+    "prep_time_min": 30,
+    "cook_time_min": 60,
+    "servings": 6,
+    "ingredients": [
+        {
+            "item": "olive oil",
+            "qty": 3.0,
+            "unit": "tablespoons",
+            "prep_note": null
+        },
+        {
+            "item": "yellow onions",
+            "qty": 2.0,
+            "unit": null,
+            "prep_note": "chopped"
+        },
+        {
+            "item": "garlic cloves",
+            "qty": 3.0,
+            "unit": null,
+            "prep_note": "minced"
+        },
+        {
+            "item": "boneless, skinless chicken breasts",
+            "qty": 2.0,
+            "unit": "pounds",
+            "prep_note": "diced"
+        },
+        {
+            "item": "white wine",
+            "qty": 0.5,
+            "unit": "cup",
+            "prep_note": null
+        },
+        {
+            "item": "canned crushed tomatoes",
+            "qty": 1.0,
+            "unit": "28-ounce can",
+            "prep_note": null
+        },
+        {
+            "item": "canned diced tomatoes",
+            "qty": 1.0,
+            "unit": "14 1/2-ounce can",
+            "prep_note": "undrained"
+        },
+        {
+            "item": "canned cannellini beans",
+            "qty": 2.0,
+            "unit": "15-ounce cans",
+            "prep_note": "drained and rinsed"
+        },
+        {
+            "item": "chicken stock or broth",
+            "qty": 2.0,
+            "unit": "cups",
+            "prep_note": null
+        },
+        {
+            "item": "chili powder",
+            "qty": 1.0,
+            "unit": "tablespoon",
+            "prep_note": null
+        },
+        {
+            "item": "cumin",
+            "qty": 1.0,
+            "unit": "tablespoon",
+            "prep_note": null
+        },
+        {
+            "item": "dried oregano",
+            "qty": 1.0,
+            "unit": "teaspoon",
+            "prep_note": null
+        },
+        {
+            "item": "red pepper flakes",
+            "qty": 0.5,
+            "unit": "teaspoon",
+            "prep_note": null
+        },
+        {
+            "item": "salt",
+            "qty": 2.0,
+            "unit": "teaspoons",
+            "prep_note": null
+        },
+        {
+            "item": "freshly ground black pepper",
+            "qty": 1.0,
+            "unit": "teaspoon",
+            "prep_note": null
+        },
+        {
+            "item": "corn tortillas or corn chips",
+            "qty": null,
+            "unit": null,
+            "prep_note": "for serving"
+        },
+        {
+            "item": "cheddar cheese",
+            "qty": null,
+            "unit": null,
+            "prep_note": "grated, for serving"
+        },
+        {
+            "item": "sour cream",
+            "qty": null,
+            "unit": null,
+            "prep_note": "for serving"
+        },
+        {
+            "item": "chopped scallions",
+            "qty": null,
+            "unit": null,
+            "prep_note": "for serving"
+        }
+    ],
+    "instructions": [
+        "Heat the olive oil in a large pot or Dutch oven. Add the onions and cook over medium-low heat until translucent, about 10 minutes. Add the garlic and cook for 1 minute more.",
+        "Add the chicken and cook for 5 to 7 minutes, stirring occasionally, until cooked through. Pour in the white wine and bring to a boil, scraping the bottom of the pan with a wooden spoon. Boil for 3 minutes, then add the crushed tomatoes, diced tomatoes, cannellini beans, chicken stock, chili powder, cumin, oregano, red pepper flakes, salt, and pepper. Bring to a boil, then lower the heat and simmer, covered, for at least 30 minutes for the flavors to blend.",
+        "Serve hot with tortilla chips, grated cheddar, sour cream, and scallions."
+    ],
+    "tags": [
+        "Chicken",
+        "Chili",
+        "Dinner",
+        "Comfort Food",
+        "Soup",
+        "Stew",
+        "Ina Garten"
+    ],
+    "user_notes": null
+}

@@ -9,3 +9,6 @@ google-auth-oauthlib
 pydantic
 streamlit-pdf-viewer
 tqdm
+requests
+beautifulsoup4
+cloudscraper

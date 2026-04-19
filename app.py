@@ -3,6 +3,8 @@ import os
 import json
 import pandas as pd
 from supabase import create_client, Client
+import uuid
+
 
 # --- NEW: Cloud-Safe Dotenv Loader ---
 try:
@@ -190,7 +192,7 @@ def iterate_recipe_modal(recipe):
         with c_chef:
             new_chef = st.text_input("Chef Name", value=recipe.get('uploader_name') or "")
         with c_cat:
-            cat_options = ["Breakfast", "Lunch", "Dinner", "Snack", "Bake"]
+            cat_options = ["Experiment", "Breakfast", "Lunch", "Dinner", "Snack", "Bake"]
             # Safely grab the current category and ensure it's in the list
             current_cat = str(recipe.get('category', 'Dinner')).capitalize()
             if current_cat not in cat_options:
@@ -287,7 +289,7 @@ with col1:
     # UPDATED: Placeholder specifically hints at searching for family members
     search_query = st.text_input("🔍 Search recipes, ingredients, or names (e.g., 'Kathleen')...", "")
 with col2:
-    category_filter = st.selectbox("Category", ["All", "Breakfast", "Lunch", "Dinner", "Snack", "Bake"])
+    category_filter = st.selectbox("Category", ["All", "experiment", "Breakfast", "Lunch", "Dinner", "Snack", "Bake"])
 
 query = supabase.table("recipes").select("*").eq("is_draft", False)
 if selected_tab != "All Recipes": query = query.ilike("family_tag", f"%{selected_tab}%")
@@ -321,8 +323,15 @@ if not lineages:
 else:
     for root_id, history in lineages.items():
         latest = history[0]
-        cat_emoji = {"breakfast": "🍳", "lunch": "🥪", "dinner": "🍝", "snack": "🥨", "bake": "🍰"}.get(
-            latest['category'].lower(), "🍽️")
+        cat_emoji = {
+            "experiment": "🧪",
+            "breakfast": "🍳",
+            "lunch": "🥪",
+            "dinner": "🍝",
+            "snack": "🥨",
+            "bake": "🍰"
+        }.get(latest['category'].lower(), "🍽️")
+
 
         with st.expander(f"{cat_emoji}  {latest['title']} (v{latest.get('version', 1)})"):
             chef_name = latest.get('uploader_name') or "Family Classic"
@@ -409,6 +418,82 @@ else:
                         "Note: Only recipes uploaded via the new Mobile Camera tool will have images here. Older PDF uploads do not have attached images.")
 
             with tab_cooked:
-                st.write("### 🚧 Coming Soon!")
-                st.write(
-                    "This space is reserved for photos of your finished dishes. Once we build the Cook Log feature in Phase 3, the photos you upload there will automatically display here for the family to see.")
+                st.subheader("📖 Cooking Journal")
+
+                # --- 1. View Past Logs ---
+                logs_response = supabase.table("cook_logs").select("*").eq("recipe_id", display_recipe['id']).order(
+                    "cooked_date", desc=True).execute()
+                past_logs = logs_response.data
+
+                if past_logs:
+                    for log in past_logs:
+                        stars = "⭐" * (log.get('rating') or 0)
+                        date_str = log.get('cooked_date', 'Unknown Date')
+
+                        st.markdown(f"**{date_str}** | {stars}")
+
+                        # --- THE NEW DISPLAY LOGIC ---
+                        saved_photos = log.get('image_urls', [])
+                        if saved_photos:
+                            # Create dynamic columns so photos display neatly side-by-side
+                            cols = st.columns(len(saved_photos))
+                            for idx, img_url in enumerate(saved_photos):
+                                with cols[idx]:
+                                    st.image(img_url, use_container_width=True)
+
+                        if log.get('notes'):
+                            st.info(f'"{log.get("notes")}"')
+                        st.divider()
+                else:
+                    st.caption("You haven't logged this recipe yet. Be the first!")
+
+                # --- 2. Log a New Cook ---
+                with st.expander("🍳 Log a New Cook"):
+                    with st.form(f"log_form_{display_recipe['id']}"):
+                        c1, c2 = st.columns([1, 1])
+                        with c1:
+                            log_date = st.date_input("Date Cooked")
+                        with c2:
+                            rating = st.feedback("stars")
+
+                        notes = st.text_area("Tasting Notes & Tweaks",
+                                             placeholder="e.g., Added an extra clove of garlic...")
+
+                        # --- THE NEW UPLOADER ---
+                        uploaded_photos = st.file_uploader("Upload Photos of your dish", type=['jpg', 'jpeg', 'png'],
+                                                           accept_multiple_files=True)
+
+                        if st.form_submit_button("Save to Journal", type="primary"):
+                            star_score = rating + 1 if rating is not None else None
+
+                            # --- THE UPLOAD PIPELINE ---
+                            final_image_urls = []
+                            if uploaded_photos:
+                                with st.spinner("Uploading photos to the cloud..."):
+                                    for photo in uploaded_photos:
+                                        # Create a unique, safe filename using UUID
+                                        file_ext = photo.name.split('.')[-1]
+                                        file_name = f"{display_recipe['id']}_{uuid.uuid4().hex}.{file_ext}"
+
+                                        # Upload the raw bytes to your new Supabase Bucket
+                                        supabase.storage.from_("recipe_photos").upload(
+                                            path=file_name,
+                                            file=photo.getvalue(),
+                                            file_options={"content-type": f"image/{file_ext}"}
+                                        )
+
+                                        # Grab the public link so Streamlit can display it later
+                                        public_url = supabase.storage.from_("recipe_photos").get_public_url(file_name)
+                                        final_image_urls.append(public_url)
+
+                            log_data = {
+                                "recipe_id": display_recipe['id'],
+                                "cooked_date": str(log_date),
+                                "rating": star_score,
+                                "notes": notes,
+                                "image_urls": final_image_urls  # Pass the list of links!
+                            }
+
+                            supabase.table("cook_logs").insert(log_data).execute()
+                            st.success("Cook logged successfully!")
+                            st.rerun()

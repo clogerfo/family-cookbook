@@ -41,7 +41,7 @@ Return ONLY a raw JSON object matching this schema:
 
 ### CRITICAL CONSTRAINTS:
 1. HERITAGE PRESERVATION: Actively scan the top, bottom, and margins for handwritten notes, tweaks, or family stories. Extract these and format them as a bulleted list in the `user_notes` field.
-2. CATEGORY MAPPING: Map the recipe strictly to: breakfast, lunch, dinner, snack, or bake.
+2. CATEGORY MAPPING: Map the recipe strictly to: breakfast, lunch, dinner, snack, bake, or experiment. If the recipe is unique or comes from a restaurant menu it is experimental.
 3. FRACTION HANDLING: If you see "1 1/2", return 1.5. If you see "1/4", return 0.25.
 4. ERROR HANDLING: If a field is missing (like prep_time), return null.
 
@@ -83,22 +83,28 @@ def extract_recipe_from_pdf(file_bytes, file_name):
 
 
 def extract_recipe_from_url(url: str):
-    """
-    Uses Gemini to parse a recipe directly from a web URL.
-    """
+    """Uses Gemini to parse a recipe directly from a web URL."""
     print(f"🌐 Brain: Scraping recipe from {url}...")
 
-    # We use a slightly different prompt for web content
-    WEB_PROMPT = f"Extract the recipe from this webpage. {PROMPT}"
+    # --- THE ANTI-HALLUCINATION PROMPT ---
+    WEB_PROMPT = f"""
+    You are a strict data extraction AI. I am providing you with a URL.
+    Read the webpage at this URL and extract the recipe.
 
-    # Initialize the new Client
+    CRITICAL RULES:
+    1. EXTRACT VERBATIM: You must copy the ingredients and instruction steps EXACTLY word-for-word as they appear on the page. 
+    2. DO NOT SUMMARIZE: Do not rewrite, rephrase, simplify, or edit the chef's instructions.
+    3. DO NOT INVENT: If a measurement is missing, leave it out. Do not use outside knowledge.
+    4. If you cannot clearly read the exact ingredients and steps because of a firewall, you MUST return null/empty.
+
+    Original Instructions: {PROMPT}
+    """
+
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
-    # Note: In 2026, Gemini 2.0 can often process URLs directly
-    # if the platform allows crawling.
     response = client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=[WEB_PROMPT, url],  # Passing the URL as a string
+        model="gemini-2.5-flash",
+        contents=[WEB_PROMPT, url],
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
             response_schema=RecipeExtraction,
@@ -108,6 +114,7 @@ def extract_recipe_from_url(url: str):
     if response.parsed:
         return response.parsed.model_dump()
     return None
+
 
 
 def extract_recipe_from_multiple_images(image_bytes_list: list, mime_type: str = "image/jpeg"):
